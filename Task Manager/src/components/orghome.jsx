@@ -1,38 +1,36 @@
-import React from 'react';
-import { auth } from '../firebase';
 import { Link } from 'react-router-dom';
-import LogoutButton from './logout';
+import { auth } from '../firebase';
+import Layout from './Layout';
 
-const NavCard = ({ to, title, description }) => (
-    <Link to={to} style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px', height: '100%' }}>
-            <h3 style={{ margin: '0 0 5px 0' }}>{title}</h3>
-            <p style={{ margin: 0, color: '#555', fontSize: '14px' }}>{description}</p>
-        </div>
-    </Link>
-);
+const NAV_CARDS = [
+    { to: '/projects', icon: '📁', title: 'Projects', description: 'Manage projects, timelines, budgets, sprints and tasks.' },
+    { to: '/create-user', icon: '👥', title: 'Team', description: 'Create team members and view your roster.' },
+    { to: '/reports/budget', icon: '💰', title: 'Budget Report', description: 'Track budget vs. spending across all projects.' },
+    { to: '/reports/users', icon: '📊', title: 'User Report', description: 'Review task completion and logged hours by user.' },
+];
 
 const OrgHome = () => {
     const orgUser = auth.currentUser;
 
     return (
-        <div style={{ maxWidth: '800px', margin: 'auto', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2>Organization Dashboard</h2>
-                <LogoutButton />
+        <Layout role="org" crumbs={[{ label: 'Dashboard' }]}>
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">Organization Dashboard</h1>
+                    <p className="page-subtitle">Signed in as {orgUser?.email}</p>
+                </div>
             </div>
 
-            <p style={{ color: '#555' }}>Logged in as: {orgUser?.email}</p>
-
-            <hr />
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <NavCard to="/projects" title="Projects" description="Manage projects, timelines, budgets, sprints and tasks." />
-                <NavCard to="/create-user" title="Manage Users" description="Create and view users." />
-                <NavCard to="/reports/budget" title="Budget Report" description="View budget vs spending across projects." />
-                <NavCard to="/reports/users" title="User Report" description="View task completion and hours by user." />
+            <div className="grid grid-2">
+                {NAV_CARDS.map(card => (
+                    <Link key={card.to} to={card.to} className="tile">
+                        <div className="tile-icon">{card.icon}</div>
+                        <h3>{card.title}</h3>
+                        <p>{card.description}</p>
+                    </Link>
+                ))}
             </div>
-        </div>
+        </Layout>
     );
 };
 

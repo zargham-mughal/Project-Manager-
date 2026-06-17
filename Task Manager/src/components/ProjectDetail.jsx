@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import {
-    doc, getDoc, collection, addDoc, getDocs, query, orderBy, serverTimestamp
-} from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { Link, useParams } from 'react-router-dom';
-import LogoutButton from './logout';
+import Layout from './Layout';
+import { EmptyState, Loader, StatusBadge } from './ui';
 
 const ProjectDetail = () => {
     const { projectId } = useParams();
@@ -39,21 +38,12 @@ const ProjectDetail = () => {
     const handleCreateSprint = async (e) => {
         e.preventDefault();
         setError('');
-
         if (!name || !startDate || !endDate) {
             setError('Please fill in all fields.');
             return;
         }
-
         try {
-            await addDoc(sprintsRef, {
-                name,
-                startDate,
-                endDate,
-                status: 'planned',
-                createdAt: serverTimestamp(),
-            });
-
+            await addDoc(sprintsRef, { name, startDate, endDate, status: 'planned', createdAt: serverTimestamp() });
             setName('');
             setStartDate('');
             setEndDate('');
@@ -64,118 +54,99 @@ const ProjectDetail = () => {
         }
     };
 
-    if (!project) return <p style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</p>;
+    if (!project) {
+        return (
+            <Layout role="org" crumbs={[{ label: 'Projects', to: '/projects' }]}>
+                <Loader />
+            </Layout>
+        );
+    }
 
-    const budgetPercent = project.budget > 0
-        ? Math.min(100, ((project.spent || 0) / project.budget) * 100)
-        : 0;
+    const budgetPercent = project.budget > 0 ? Math.min(100, ((project.spent || 0) / project.budget) * 100) : 0;
+    const remaining = (project.budget || 0) - (project.spent || 0);
 
     return (
-        <div style={{ maxWidth: '800px', margin: 'auto', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2>{project.name}</h2>
-                <LogoutButton />
-            </div>
-
-            <Link to="/projects" style={{ fontSize: '14px', textDecoration: 'none', color: '#007bff' }}>
-                ← Back to Projects
-            </Link>
-
-            <hr />
-
-            <p>{project.description}</p>
-            <p style={{ fontSize: '14px', color: '#888' }}>{project.startDate} → {project.endDate}</p>
-
-            <div style={{ marginBottom: '20px' }}>
-                <p style={{ margin: '0 0 5px 0' }}>
-                    Budget: ${project.budget?.toLocaleString()} | Spent: ${(project.spent || 0).toLocaleString()}
-                </p>
-                <div style={{ background: '#eee', borderRadius: '4px', height: '20px', width: '100%' }}>
-                    <div style={{
-                        background: budgetPercent > 90 ? '#dc3545' : '#28a745',
-                        width: `${budgetPercent}%`,
-                        height: '100%',
-                        borderRadius: '4px',
-                        transition: 'width 0.3s'
-                    }} />
+        <Layout role="org" crumbs={[{ label: 'Projects', to: '/projects' }, { label: project.name }]}>
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">{project.name}</h1>
+                    <p className="page-subtitle">{project.startDate} → {project.endDate}</p>
                 </div>
-                <p style={{ fontSize: '12px', color: '#888', margin: '5px 0 0 0' }}>{budgetPercent.toFixed(1)}% used</p>
             </div>
 
-            <hr />
+            {project.description && <p className="text-muted mb-24">{project.description}</p>}
 
-            <h3>Sprints</h3>
-            <button
-                onClick={() => setShowForm(!showForm)}
-                style={{ padding: '10px 20px', cursor: 'pointer', background: '#007bff', color: '#fff', border: 'none', marginBottom: '20px' }}
-            >
-                {showForm ? 'Cancel' : '+ New Sprint'}
-            </button>
+            <div className="stat-grid">
+                <div className="stat-card">
+                    <div className="stat-label">Budget</div>
+                    <div className="stat-value">${project.budget?.toLocaleString()}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-label">Spent</div>
+                    <div className="stat-value danger">${(project.spent || 0).toLocaleString()}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-label">Remaining</div>
+                    <div className="stat-value success">${remaining.toLocaleString()}</div>
+                </div>
+            </div>
+
+            <div className="card card-body mb-24">
+                <div className="row-between text-sm" style={{ marginBottom: 8 }}>
+                    <span className="text-muted">Budget utilization</span>
+                    <span style={{ fontWeight: 600 }}>{budgetPercent.toFixed(1)}%</span>
+                </div>
+                <div className="progress">
+                    <div className={`progress-bar ${budgetPercent > 90 ? 'danger' : budgetPercent > 70 ? 'warning' : ''}`} style={{ width: `${budgetPercent}%` }} />
+                </div>
+            </div>
+
+            <div className="row-between mb-16">
+                <h2 className="section-title" style={{ margin: 0 }}>Sprints</h2>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>
+                    {showForm ? 'Cancel' : '+ New Sprint'}
+                </button>
+            </div>
 
             {showForm && (
-                <form onSubmit={handleCreateSprint} style={{ marginBottom: '30px', border: '1px solid #ddd', padding: '15px' }}>
-                    <div style={{ marginBottom: '10px' }}>
-                        <label>Sprint Name:</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                        />
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                        <div style={{ flex: 1 }}>
-                            <label>Start Date:</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                required
-                                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                            />
+                <div className="card card-body mb-24">
+                    <form onSubmit={handleCreateSprint}>
+                        <div className="form-group">
+                            <label className="label">Sprint name *</label>
+                            <input className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <label>End Date:</label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                required
-                                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                            />
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="label">Start date *</label>
+                                <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+                            </div>
+                            <div className="form-group">
+                                <label className="label">End date *</label>
+                                <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+                            </div>
                         </div>
-                    </div>
-
-                    {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
-
-                    <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer', background: '#28a745', color: '#fff', border: 'none' }}>
-                        Create Sprint
-                    </button>
-                </form>
+                        {error && <div className="alert alert-error">{error}</div>}
+                        <button type="submit" className="btn btn-success">Create Sprint</button>
+                    </form>
+                </div>
             )}
 
             {sprints.length === 0 ? (
-                <p style={{ color: '#888' }}>No sprints yet.</p>
+                <EmptyState icon="🏃" title="No sprints yet">Add a sprint to start planning tasks.</EmptyState>
             ) : (
-                <div style={{ display: 'grid', gap: '10px' }}>
+                <div className="grid">
                     {sprints.map(s => (
-                        <Link
-                            key={s.id}
-                            to={`/projects/${projectId}/sprints/${s.id}`}
-                            style={{ textDecoration: 'none', color: 'inherit' }}
-                        >
-                            <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px' }}>
-                                <h4 style={{ margin: '0 0 5px 0' }}>{s.name}</h4>
-                                <p style={{ margin: 0, fontSize: '14px', color: '#888' }}>
-                                    {s.startDate} → {s.endDate} | Status: {s.status}
-                                </p>
+                        <Link key={s.id} to={`/projects/${projectId}/sprints/${s.id}`} className="tile">
+                            <div className="row-between">
+                                <h3 style={{ fontSize: 15 }}>{s.name}</h3>
+                                <StatusBadge status={s.status} />
                             </div>
+                            <p className="text-muted text-sm" style={{ marginTop: 6 }}>{s.startDate} → {s.endDate}</p>
                         </Link>
                     ))}
                 </div>
             )}
-        </div>
+        </Layout>
     );
 };
 

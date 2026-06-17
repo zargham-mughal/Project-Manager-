@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { auth } from '../firebase';
-import { Link } from 'react-router-dom';
-import LogoutButton from './logout';
+import Layout from './Layout';
+import { EmptyState, Loader } from './ui';
 import { fetchAllProjects } from './reportData';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -21,92 +21,95 @@ const BudgetReport = () => {
         load();
     }, []);
 
-    const chartData = projects.map(p => ({
-        name: p.name,
-        Budget: p.budget || 0,
-        Spent: p.spent || 0,
-    }));
-
+    const chartData = projects.map(p => ({ name: p.name, Budget: p.budget || 0, Spent: p.spent || 0 }));
     const totalBudget = projects.reduce((sum, p) => sum + (p.budget || 0), 0);
     const totalSpent = projects.reduce((sum, p) => sum + (p.spent || 0), 0);
 
     return (
-        <div style={{ maxWidth: '800px', margin: 'auto', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2>Budget Report</h2>
-                <LogoutButton />
+        <Layout role="org" crumbs={[{ label: 'Dashboard', to: '/orghome' }, { label: 'Budget Report' }]}>
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">Budget Report</h1>
+                    <p className="page-subtitle">Budget vs. spending across all projects</p>
+                </div>
             </div>
 
-            <Link to="/orghome" style={{ fontSize: '14px', textDecoration: 'none', color: '#007bff' }}>
-                ← Back to Dashboard
-            </Link>
-
-            <hr />
-
             {loading ? (
-                <p>Loading...</p>
+                <Loader />
             ) : projects.length === 0 ? (
-                <p style={{ color: '#888' }}>No projects yet.</p>
+                <EmptyState icon="💰" title="No projects yet">Create projects to see budget analytics.</EmptyState>
             ) : (
                 <>
-                    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                        <div style={{ flex: 1, border: '1px solid #ddd', padding: '15px', borderRadius: '4px', textAlign: 'center' }}>
-                            <p style={{ margin: 0, color: '#888' }}>Total Budget</p>
-                            <h3 style={{ margin: '5px 0 0 0' }}>${totalBudget.toLocaleString()}</h3>
+                    <div className="stat-grid">
+                        <div className="stat-card">
+                            <div className="stat-label">Total Budget</div>
+                            <div className="stat-value">${totalBudget.toLocaleString()}</div>
                         </div>
-                        <div style={{ flex: 1, border: '1px solid #ddd', padding: '15px', borderRadius: '4px', textAlign: 'center' }}>
-                            <p style={{ margin: 0, color: '#888' }}>Total Spent</p>
-                            <h3 style={{ margin: '5px 0 0 0' }}>${totalSpent.toLocaleString()}</h3>
+                        <div className="stat-card">
+                            <div className="stat-label">Total Spent</div>
+                            <div className="stat-value danger">${totalSpent.toLocaleString()}</div>
                         </div>
-                        <div style={{ flex: 1, border: '1px solid #ddd', padding: '15px', borderRadius: '4px', textAlign: 'center' }}>
-                            <p style={{ margin: 0, color: '#888' }}>Remaining</p>
-                            <h3 style={{ margin: '5px 0 0 0' }}>${(totalBudget - totalSpent).toLocaleString()}</h3>
+                        <div className="stat-card">
+                            <div className="stat-label">Remaining</div>
+                            <div className="stat-value success">${(totalBudget - totalSpent).toLocaleString()}</div>
                         </div>
                     </div>
 
-                    <div style={{ width: '100%', height: 350 }}>
-                        <ResponsiveContainer>
-                            <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Bar dataKey="Budget" fill="#007bff" />
-                                <Bar dataKey="Spent" fill="#dc3545" />
-                            </BarChart>
-                        </ResponsiveContainer>
+                    <div className="chart-card mb-24">
+                        <h3 className="card-title mb-16">Budget vs. Spent</h3>
+                        <div style={{ width: '100%', height: 340 }}>
+                            <ResponsiveContainer>
+                                <BarChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ebecf0" />
+                                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#5e6c84' }} />
+                                    <YAxis tick={{ fontSize: 12, fill: '#5e6c84' }} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar dataKey="Budget" fill="#0052cc" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="Spent" fill="#de350b" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
 
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-                        <thead>
-                            <tr style={{ background: '#f0f0f0' }}>
-                                <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Project</th>
-                                <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Budget</th>
-                                <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Spent</th>
-                                <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Remaining</th>
-                                <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>% Used</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {projects.map(p => {
-                                const remaining = (p.budget || 0) - (p.spent || 0);
-                                const pct = p.budget > 0 ? ((p.spent || 0) / p.budget) * 100 : 0;
-                                return (
-                                    <tr key={p.id}>
-                                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>{p.name}</td>
-                                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>${(p.budget || 0).toLocaleString()}</td>
-                                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>${(p.spent || 0).toLocaleString()}</td>
-                                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>${remaining.toLocaleString()}</td>
-                                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>{pct.toFixed(1)}%</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                    <div className="table-wrap">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Budget</th>
+                                    <th>Spent</th>
+                                    <th>Remaining</th>
+                                    <th>% Used</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {projects.map(p => {
+                                    const remaining = (p.budget || 0) - (p.spent || 0);
+                                    const pct = p.budget > 0 ? ((p.spent || 0) / p.budget) * 100 : 0;
+                                    return (
+                                        <tr key={p.id}>
+                                            <td style={{ fontWeight: 600 }}>{p.name}</td>
+                                            <td>${(p.budget || 0).toLocaleString()}</td>
+                                            <td>${(p.spent || 0).toLocaleString()}</td>
+                                            <td>${remaining.toLocaleString()}</td>
+                                            <td>
+                                                <div className="flex items-center gap-8">
+                                                    <div className="progress" style={{ width: 80 }}>
+                                                        <div className={`progress-bar ${pct > 90 ? 'danger' : pct > 70 ? 'warning' : ''}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                                                    </div>
+                                                    <span className="text-sm">{pct.toFixed(1)}%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </>
             )}
-        </div>
+        </Layout>
     );
 };
 

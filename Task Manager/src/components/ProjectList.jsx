@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import {
-    collection, addDoc, getDocs, query, orderBy, serverTimestamp
-} from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
-import LogoutButton from './logout';
+import Layout from './Layout';
+import { EmptyState, Loader } from './ui';
 
 const ProjectList = () => {
     const [projects, setProjects] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -23,6 +23,7 @@ const ProjectList = () => {
         const q = query(projectsRef, orderBy('createdAt', 'desc'));
         const snapshot = await getDocs(q);
         setProjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
     };
 
     useEffect(() => {
@@ -48,7 +49,6 @@ const ProjectList = () => {
                 endDate,
                 createdAt: serverTimestamp(),
             });
-
             setName('');
             setDescription('');
             setBudget('');
@@ -62,113 +62,81 @@ const ProjectList = () => {
     };
 
     return (
-        <div style={{ maxWidth: '800px', margin: 'auto', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2>Projects</h2>
-                <LogoutButton />
+        <Layout role="org" crumbs={[{ label: 'Dashboard', to: '/orghome' }, { label: 'Projects' }]}>
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">Projects</h1>
+                    <p className="page-subtitle">{projects.length} project{projects.length !== 1 ? 's' : ''} in your workspace</p>
+                </div>
+                <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+                    {showForm ? 'Cancel' : '+ New Project'}
+                </button>
             </div>
 
-            <Link to="/orghome" style={{ fontSize: '14px', textDecoration: 'none', color: '#007bff' }}>
-                ← Back to Dashboard
-            </Link>
-
-            <hr />
-
-            <button
-                onClick={() => setShowForm(!showForm)}
-                style={{ padding: '10px 20px', cursor: 'pointer', background: '#007bff', color: '#fff', border: 'none', marginBottom: '20px' }}
-            >
-                {showForm ? 'Cancel' : '+ New Project'}
-            </button>
-
             {showForm && (
-                <form onSubmit={handleCreateProject} style={{ marginBottom: '30px', border: '1px solid #ddd', padding: '15px' }}>
-                    <div style={{ marginBottom: '10px' }}>
-                        <label>Project Name:</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                        />
-                    </div>
-                    <div style={{ marginBottom: '10px' }}>
-                        <label>Description:</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                        />
-                    </div>
-                    <div style={{ marginBottom: '10px' }}>
-                        <label>Budget ($):</label>
-                        <input
-                            type="number"
-                            value={budget}
-                            onChange={(e) => setBudget(e.target.value)}
-                            required
-                            min="0"
-                            step="0.01"
-                            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                        />
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                        <div style={{ flex: 1 }}>
-                            <label>Start Date:</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                required
-                                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                            />
+                <div className="card card-body mb-24">
+                    <h3 className="card-title mb-16">Create a new project</h3>
+                    <form onSubmit={handleCreateProject}>
+                        <div className="form-group">
+                            <label className="label">Project name *</label>
+                            <input className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <label>End Date:</label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                required
-                                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-                            />
+                        <div className="form-group">
+                            <label className="label">Description</label>
+                            <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
                         </div>
-                    </div>
-
-                    {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
-
-                    <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer', background: '#28a745', color: '#fff', border: 'none' }}>
-                        Create Project
-                    </button>
-                </form>
-            )}
-
-            {projects.length === 0 ? (
-                <p style={{ color: '#888' }}>No projects yet.</p>
-            ) : (
-                <div style={{ display: 'grid', gap: '10px' }}>
-                    {projects.map(p => (
-                        <Link
-                            key={p.id}
-                            to={`/projects/${p.id}`}
-                            style={{ textDecoration: 'none', color: 'inherit' }}
-                        >
-                            <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px' }}>
-                                <h3 style={{ margin: '0 0 5px 0' }}>{p.name}</h3>
-                                <p style={{ margin: '0 0 5px 0', color: '#555' }}>{p.description}</p>
-                                <p style={{ margin: 0, fontSize: '14px' }}>
-                                    Budget: ${p.budget?.toLocaleString()} | Spent: ${p.spent?.toLocaleString() || 0}
-                                </p>
-                                <p style={{ margin: 0, fontSize: '14px', color: '#888' }}>
-                                    {p.startDate} → {p.endDate}
-                                </p>
+                        <div className="form-group">
+                            <label className="label">Budget ($) *</label>
+                            <input className="input" type="number" value={budget} onChange={(e) => setBudget(e.target.value)} min="0" step="0.01" required />
+                        </div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="label">Start date *</label>
+                                <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
                             </div>
-                        </Link>
-                    ))}
+                            <div className="form-group">
+                                <label className="label">End date *</label>
+                                <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+                            </div>
+                        </div>
+                        {error && <div className="alert alert-error">{error}</div>}
+                        <button type="submit" className="btn btn-success">Create Project</button>
+                    </form>
                 </div>
             )}
-        </div>
+
+            {loading ? (
+                <Loader />
+            ) : projects.length === 0 ? (
+                <EmptyState icon="📁" title="No projects yet">Create your first project to get started.</EmptyState>
+            ) : (
+                <div className="grid grid-2">
+                    {projects.map(p => {
+                        const pct = p.budget > 0 ? Math.min(100, ((p.spent || 0) / p.budget) * 100) : 0;
+                        return (
+                            <Link key={p.id} to={`/projects/${p.id}`} className="tile">
+                                <div className="row-between mb-16">
+                                    <h3>{p.name}</h3>
+                                    <span className="text-sm text-muted">{p.startDate} → {p.endDate}</span>
+                                </div>
+                                <p className="text-muted text-sm" style={{ marginBottom: 14, minHeight: 18 }}>
+                                    {p.description || 'No description'}
+                                </p>
+                                <div className="row-between text-sm" style={{ marginBottom: 6 }}>
+                                    <span className="text-muted">Budget used</span>
+                                    <span style={{ fontWeight: 600 }}>
+                                        ${(p.spent || 0).toLocaleString()} / ${p.budget?.toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="progress">
+                                    <div className={`progress-bar ${pct > 90 ? 'danger' : pct > 70 ? 'warning' : ''}`} style={{ width: `${pct}%` }} />
+                                </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
+        </Layout>
     );
 };
 

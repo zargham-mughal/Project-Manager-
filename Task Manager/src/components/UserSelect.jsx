@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
@@ -33,15 +33,11 @@ const UserSelect = ({ value, onChange }) => {
     };
 
     return (
-        <select
-            value={value?.uid || ''}
-            onChange={handleChange}
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-        >
-            <option value="">-- Unassigned --</option>
+        <select className="select" value={value?.uid || ''} onChange={handleChange}>
+            <option value="">— Unassigned —</option>
             {users.map(u => (
                 <option key={u.id} value={u.id}>
-                    {u.name} ({u.email}) — {u.id}
+                    {u.name} ({u.email})
                 </option>
             ))}
         </select>
