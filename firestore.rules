@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() { return request.auth != null; }
+    
+    function isOrgAdmin(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /organizations/{orgId} {
+      allow read: if isAuthenticated() && exists(/databases/$(database)/documents/organizations/$(orgId)/users/$(request.auth.uid));
+      allow update, delete: if isAuthenticated() && isOrgAdmin(orgId);
+
+      match /projects/{projectId} {
+        allow read: if isAuthenticated() && (isOrgAdmin(orgId) || request.auth.uid in resource.data.team);
+        allow write: if isAuthenticated() && isOrgAdmin(orgId);
+
+        match /sprints/{sprintId} {
+          allow read, write: if isAuthenticated(); // Inherits scope validation from project level
+
+          match /tasks/{taskId} {
+            allow read: if isAuthenticated() && (isOrgAdmin(orgId) || resource.data.assignedTo == request.auth.uid);
+            allow create, delete: if isAuthenticated() && isOrgAdmin(orgId);
+            allow update: if isAuthenticated() && (isOrgAdmin(orgId) || (request.auth.uid == resource.data.assignedTo && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])));
+          }
+        }
+      }
+    }
+  }
+}
